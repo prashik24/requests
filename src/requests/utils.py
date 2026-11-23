@@ -462,9 +462,11 @@ def parse_dict_header(value: str) -> dict[str, str | None]:
     result: dict[str, str | None] = {}
     for item in _parse_list_header(value):
         if "=" not in item:
-            result[item] = None
+            result[item.strip()] = None
             continue
         name, value = item.split("=", 1)
+        name = name.strip()
+        value = value.strip()
         if value[:1] == value[-1:] == '"':
             value = unquote_header_value(value[1:-1])
         result[name] = value

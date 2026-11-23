@@ -570,10 +570,39 @@ def test_select_proxies(url, expected, proxies):
     (
         ('foo="is a fish", bar="as well"', {"foo": "is a fish", "bar": "as well"}),
         ("key_without_value", {"key_without_value": None}),
+        (" key_without_value ", {"key_without_value": None}),
+        (
+            'realm = "test", nonce = "abc", qop="auth"',
+            {"realm": "test", "nonce": "abc", "qop": "auth"},
+        ),
+        (
+            'realm="test", nonce = "abc", opaque = "xyz"',
+            {"realm": "test", "nonce": "abc", "opaque": "xyz"},
+        ),
     ),
 )
 def test_parse_dict_header(value, expected):
     assert parse_dict_header(value) == expected
+
+
+def test_parse_dict_header_whitespace_digest_auth():
+    """Verify parse_dict_header strips whitespace around '=' so HTTPDigestAuth
+    can find required keys without KeyError.
+    """
+    from requests.auth import HTTPDigestAuth
+
+    challenge = 'realm = "test_realm", nonce = "abc123", qop="auth"'
+    chal = parse_dict_header(challenge)
+    assert chal["realm"] == "test_realm"
+    assert chal["nonce"] == "abc123"
+    assert chal["qop"] == "auth"
+
+    auth = HTTPDigestAuth("user", "pass")
+    auth.init_per_thread_state()
+    auth._thread_local.chal = chal
+    header = auth.build_digest_header("GET", "http://example.com/")
+    assert 'realm="test_realm"' in header
+    assert 'nonce="abc123"' in header
 
 
 @pytest.mark.parametrize(
